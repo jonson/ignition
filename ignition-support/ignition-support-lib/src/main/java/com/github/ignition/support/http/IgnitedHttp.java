@@ -63,24 +63,56 @@ public class IgnitedHttp {
 
     private HttpResponseCache responseCache;
 
+    public static class IgnitedConfig {
+    	private int maxConnections = DEFAULT_MAX_CONNECTIONS;
+    	private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+    	private int waitForConnectionTimeout = DEFAULT_WAIT_FOR_CONNECTION_TIMEOUT;
+    	private String userAgent = DEFAULT_HTTP_USER_AGENT;
+    	
+    	public IgnitedConfig maxConnections(int maxConnections) {
+    		this.maxConnections = maxConnections;
+    		return this;
+    	}
+    	
+    	public IgnitedConfig socketTimeout(int socketTimeoutMillis) {
+    		this.socketTimeout = socketTimeoutMillis;
+    		return this;
+    	}
+    	
+    	public IgnitedConfig waitForConnectionTimeout(int waitForConnectionTimeoutMillis) {
+    		this.waitForConnectionTimeout = waitForConnectionTimeoutMillis;
+    		return this;
+    	}
+    	
+    	public IgnitedConfig userAgent(String userAgent) {
+    		this.userAgent = userAgent;
+    		return this;
+    	}
+    }
+    
+    
     public IgnitedHttp(Context context) {
-        appContext = context.getApplicationContext();
-        setupHttpClient();
+        this(context, new IgnitedConfig());
+    }
+    
+    public IgnitedHttp(Context context, IgnitedConfig config) {
+    	appContext = context.getApplicationContext();
+        setupHttpClient(config);
         appContext.registerReceiver(new ConnectionChangedBroadcastReceiver(this), new IntentFilter(
                 ConnectivityManager.CONNECTIVITY_ACTION));
     }
 
-    protected void setupHttpClient() {
+    protected void setupHttpClient(IgnitedConfig config) {
         BasicHttpParams httpParams = new BasicHttpParams();
 
-        ConnManagerParams.setTimeout(httpParams, DEFAULT_WAIT_FOR_CONNECTION_TIMEOUT);
+        ConnManagerParams.setTimeout(httpParams, config.waitForConnectionTimeout);
         ConnManagerParams.setMaxConnectionsPerRoute(httpParams, new ConnPerRouteBean(
-                DEFAULT_MAX_CONNECTIONS));
-        ConnManagerParams.setMaxTotalConnections(httpParams, DEFAULT_MAX_CONNECTIONS);
-        HttpConnectionParams.setSoTimeout(httpParams, DEFAULT_SOCKET_TIMEOUT);
+                config.maxConnections));
+        ConnManagerParams.setMaxTotalConnections(httpParams, config.maxConnections);
+        HttpConnectionParams.setSoTimeout(httpParams, config.socketTimeout);
         HttpConnectionParams.setTcpNoDelay(httpParams, true);
         HttpProtocolParams.setVersion(httpParams, HttpVersion.HTTP_1_1);
-        HttpProtocolParams.setUserAgent(httpParams, DEFAULT_HTTP_USER_AGENT);
+        HttpProtocolParams.setUserAgent(httpParams, config.userAgent);
 
         SchemeRegistry schemeRegistry = new SchemeRegistry();
         schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
@@ -205,10 +237,17 @@ public class IgnitedHttp {
     }
 
     public IgnitedHttpRequest get(String url) {
-        return get(url, false);
+        return get(url, null, false);
     }
 
     public IgnitedHttpRequest get(String url, boolean cached) {
+    	return get(url, null, cached);
+    }
+    
+    public IgnitedHttpRequest get(String url, RequestParams params, boolean cached) {
+    	// caching w/ query string is likely not working, we need to sort the params before
+    	// building the string to guarantee the same order
+    	url = getUrlWithQueryString(url, params);
         if (cached && responseCache != null && responseCache.containsKey(url)) {
             return new CachedHttpRequest(responseCache, url);
         }
@@ -222,6 +261,10 @@ public class IgnitedHttp {
     public IgnitedHttpRequest post(String url, HttpEntity payload) {
         return new HttpPost(this, url, payload, defaultHeaders);
     }
+    
+    public IgnitedHttpRequest post(String url, RequestParams params) {
+    	return new HttpPost(this, url, params.getEntity(), defaultHeaders);
+    }
 
     public IgnitedHttpRequest put(String url) {
         return new HttpPut(this, url, defaultHeaders);
@@ -229,6 +272,11 @@ public class IgnitedHttp {
 
     public IgnitedHttpRequest put(String url, HttpEntity payload) {
         return new HttpPut(this, url, payload, defaultHeaders);
+    }
+    
+    public IgnitedHttpRequest put(String url, RequestParams params) {
+    	// need to set the content type here too?
+    	return new HttpPut(this, url, params.getEntity(), defaultHeaders);
     }
 
     public IgnitedHttpRequest delete(String url) {
@@ -275,6 +323,15 @@ public class IgnitedHttp {
     public void setPortForScheme(String scheme, int port) {
         Scheme _scheme = new Scheme(scheme, PlainSocketFactory.getSocketFactory(), port);
         httpClient.getConnectionManager().getSchemeRegistry().register(_scheme);
+    }
+    
+    private String getUrlWithQueryString(String url, RequestParams params) {
+        if(params != null) {
+            String paramString = params.getParamString();
+            url += "?" + paramString;
+        }
+
+        return url;
     }
 
 }
