@@ -31,6 +31,7 @@ public class RemoteImageLoaderJob implements Runnable {
         this.handler = handler;
         this.imageCache = imageCache;
         this.numRetries = numRetries;
+        this.defaultBufferSize = defaultBufferSize;
     }
 
     /**
