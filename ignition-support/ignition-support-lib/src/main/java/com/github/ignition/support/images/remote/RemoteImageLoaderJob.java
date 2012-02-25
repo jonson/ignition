@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import org.apache.http.util.ByteArrayBuffer;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
@@ -13,6 +15,7 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.github.ignition.support.cache.ImageCache;
+import com.google.common.primitives.Bytes;
 
 public class RemoteImageLoaderJob implements Runnable {
 
@@ -20,6 +23,9 @@ public class RemoteImageLoaderJob implements Runnable {
 
     private static final int DEFAULT_RETRY_HANDLER_SLEEP_TIME = 1000;
 
+    private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
+    private static final int DEFATUL_SOCKET_TIMEOUT = 5000;
+    
     private String imageUrl;
     private RemoteImageLoaderHandler handler;
     private ImageCache imageCache;
@@ -67,11 +73,15 @@ public class RemoteImageLoaderJob implements Runnable {
                     break;
                 }
 
+                // first try to decode the image before before caching it
+                Bitmap bmp = BitmapFactory.decodeByteArray(imageData, 0, imageData.length); 
+
+                // at this point, it was decoded properly, cache it if possible
                 if (imageCache != null) {
                     imageCache.put(imageUrl, imageData);
                 }
 
-                return BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
+                return bmp;
 
             } catch (Throwable e) {
                 Log.w(LOG_TAG, "download for " + imageUrl + " failed (attempt " + timesTried + ")");
@@ -87,7 +97,9 @@ public class RemoteImageLoaderJob implements Runnable {
     protected byte[] retrieveImageData() throws IOException {
         URL url = new URL(imageUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
+        connection.setConnectTimeout(DEFAULT_CONNECTION_TIMEOUT);
+        connection.setReadTimeout(DEFATUL_SOCKET_TIMEOUT);
+        
         // determine the image size and allocate a buffer
         int fileSize = connection.getContentLength();
         if (fileSize <= 0) {
@@ -96,22 +108,28 @@ public class RemoteImageLoaderJob implements Runnable {
                     "Server did not set a Content-Length header, will default to buffer size of "
                             + defaultBufferSize + " bytes");
         }
+
         byte[] imageData = new byte[fileSize];
+        ByteArrayBuffer buffer = new ByteArrayBuffer(fileSize);
 
         // download the file
         Log.d(LOG_TAG, "fetching image " + imageUrl + " (" + fileSize + ")");
         BufferedInputStream istream = new BufferedInputStream(connection.getInputStream());
         int bytesRead = 0;
         int offset = 0;
-        while (bytesRead != -1 && offset < fileSize) {
-            bytesRead = istream.read(imageData, offset, fileSize - offset);
-            offset += bytesRead;
+        while (bytesRead != -1) {
+            bytesRead = istream.read(imageData, 0, fileSize);
+            if (bytesRead > 0) {
+	            buffer.append(imageData, 0, bytesRead);
+	            offset += bytesRead;
+            }
         }
 
         // clean up
         istream.close();
         connection.disconnect();
-
+        
+        imageData = buffer.toByteArray();
         return imageData;
     }
 
