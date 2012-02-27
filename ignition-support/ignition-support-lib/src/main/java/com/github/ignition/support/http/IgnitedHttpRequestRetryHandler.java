@@ -3,6 +3,7 @@ package com.github.ignition.support.http;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.HashSet;
 
@@ -32,8 +33,10 @@ public class IgnitedHttpRequestRetryHandler implements HttpRequestRetryHandler {
         exceptionWhitelist.add(UnknownHostException.class);
         // retry-this, since it may happens as part of a Wi-Fi to 3G failover
         exceptionWhitelist.add(SocketException.class);
+        
+        exceptionWhitelist.add(SocketTimeoutException.class);
 
-        // never retry timeouts
+        // never retry timeouts ?? why not?
         // TODO: this doesn't actually capture all timeouts; I've seen timeouts being thrown as a
         // plain SocketExceptiion
         exceptionBlacklist.add(InterruptedIOException.class);

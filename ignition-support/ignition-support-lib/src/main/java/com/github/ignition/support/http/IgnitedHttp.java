@@ -15,10 +15,12 @@
 package com.github.ignition.support.http;
 
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpVersion;
+import org.apache.http.client.CookieStore;
 import org.apache.http.conn.params.ConnManagerParams;
 import org.apache.http.conn.params.ConnPerRouteBean;
 import org.apache.http.conn.params.ConnRoutePNames;
@@ -26,6 +28,7 @@ import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.AbstractHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
@@ -40,6 +43,7 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Proxy;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.github.ignition.support.IgnitedDiagnostics;
@@ -332,6 +336,34 @@ public class IgnitedHttp {
         }
 
         return url;
+    }
+    
+    /**
+     * Returns the specified cookie if it exists, or null otherwise.  Very simple usage, does not check
+     * domain. 
+     * 
+     * @param name
+     * 			The cookie name
+     * @return
+     * 		The first cookie that exists with this name.
+     */
+    public Cookie getCookie(String name) {
+    	CookieStore cs = httpClient.getCookieStore();
+    	if (cs == null) {
+    		return null;
+    	}
+    	
+    	List<Cookie> cookies = cs.getCookies();
+    	if (cookies == null) {
+    		return null;
+    	}
+    	
+    	for (Cookie cookie : cookies) {
+    		if (TextUtils.equals(cookie.getName(), name)) {
+    			return cookie;
+    		}
+    	}
+    	return null;
     }
 
 }

@@ -15,14 +15,14 @@ import android.os.SystemClock;
 import android.util.Log;
 
 import com.github.ignition.support.cache.ImageCache;
-import com.google.common.primitives.Bytes;
 
 public class RemoteImageLoaderJob implements Runnable {
-
+	
     private static final String LOG_TAG = "Ignition/ImageLoader";
+    
+    public static final int NO_SCALING = -1;
 
     private static final int DEFAULT_RETRY_HANDLER_SLEEP_TIME = 1000;
-
     private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
     private static final int DEFATUL_SOCKET_TIMEOUT = 5000;
     
@@ -30,10 +30,19 @@ public class RemoteImageLoaderJob implements Runnable {
     private RemoteImageLoaderHandler handler;
     private ImageCache imageCache;
     private int numRetries, defaultBufferSize;
-
+    private int width;
+    private int height;
+    
     public RemoteImageLoaderJob(String imageUrl, RemoteImageLoaderHandler handler, ImageCache imageCache,
             int numRetries, int defaultBufferSize) {
+    	this (imageUrl, NO_SCALING, NO_SCALING, handler, imageCache, numRetries, defaultBufferSize);
+    }
+    
+    public RemoteImageLoaderJob(String imageUrl, int width, int height, RemoteImageLoaderHandler handler, ImageCache imageCache,
+            int numRetries, int defaultBufferSize) {
         this.imageUrl = imageUrl;
+        this.width = width;
+        this.height = height;
         this.handler = handler;
         this.imageCache = imageCache;
         this.numRetries = numRetries;
@@ -50,7 +59,11 @@ public class RemoteImageLoaderJob implements Runnable {
 
         if (imageCache != null) {
             // at this point we know the image is not in memory, but it could be cached to SD card
-            bitmap = imageCache.getBitmap(imageUrl);
+        	if (requiresScaling()) {
+        		bitmap = imageCache.getScaledBitmap(imageUrl, width, height);
+        	} else {
+        		bitmap = imageCache.getBitmap(imageUrl);
+        	}
         }
 
         if (bitmap == null) {
@@ -58,6 +71,14 @@ public class RemoteImageLoaderJob implements Runnable {
         }
 
         notifyImageLoaded(imageUrl, bitmap);
+    }
+
+    private boolean requiresScaling() {
+    	return (width > 0) && (height > 0);
+    }
+    
+    private Bitmap rawDecode(byte[] imageData) {
+    	return BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
     }
 
     // TODO: we could probably improve performance by re-using connections instead of closing them
@@ -74,10 +95,22 @@ public class RemoteImageLoaderJob implements Runnable {
                 }
 
                 // first try to decode the image before before caching it
-                Bitmap bmp = BitmapFactory.decodeByteArray(imageData, 0, imageData.length); 
-
+                Bitmap bmp;
+                if (requiresScaling()) {
+                	// first try to fetch the image
+                	bmp = BitmapHelper.decodeAndResize(imageData, width, height);
+                	
+                	if (bmp != null) {
+                		// TOOD: consider re-writing this file with the smaller size instead
+                		// of forcing this to be re-scaled every time it's fetched from the cache
+                	}
+                	
+                } else {
+                	bmp = rawDecode(imageData);
+                }
+                
                 // at this point, it was decoded properly, cache it if possible
-                if (imageCache != null) {
+                if (imageCache != null && bmp != null) {
                     imageCache.put(imageUrl, imageData);
                 }
 
@@ -93,7 +126,7 @@ public class RemoteImageLoaderJob implements Runnable {
 
         return null;
     }
-
+    
     protected byte[] retrieveImageData() throws IOException {
         URL url = new URL(imageUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -144,4 +177,5 @@ public class RemoteImageLoaderJob implements Runnable {
 
         handler.sendMessage(message);
     }
+    
 }

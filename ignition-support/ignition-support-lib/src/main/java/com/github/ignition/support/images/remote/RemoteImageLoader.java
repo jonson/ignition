@@ -19,7 +19,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.text.TextUtils;
+import android.util.Log;
 import android.widget.ImageView;
 
 import com.github.ignition.support.cache.ImageCache;
@@ -48,7 +51,7 @@ public class RemoteImageLoader {
     private int defaultBufferSize = DEFAULT_BUFFER_SIZE;
     private long expirationInMinutes = DEFAULT_TTL_MINUTES;
 
-    private Drawable dummyDrawable, errorDrawable;
+    protected Drawable dummyDrawable, errorDrawable;
 
     public RemoteImageLoader(Context context) {
         this(context, true);
@@ -136,6 +139,7 @@ public class RemoteImageLoader {
         return imageCache;
     }
 
+    
     /**
      * Triggers the image loader for the given image and view. The image loading will be performed
      * concurrently to the UI main thread, using a fixed size thread pool. The loaded image will be
@@ -150,7 +154,7 @@ public class RemoteImageLoader {
     public void loadImage(String imageUrl, ImageView imageView) {
         loadImage(imageUrl, imageView, new RemoteImageLoaderHandler(imageView, imageUrl, errorDrawable));
     }
-
+    
     /**
      * Triggers the image loader for the given image and view. The image loading will be performed
      * concurrently to the UI main thread, using a fixed size thread pool. The loaded image will be
@@ -164,34 +168,74 @@ public class RemoteImageLoader {
      *            the handler that will process the bitmap after completion
      */
     public void loadImage(String imageUrl, ImageView imageView, RemoteImageLoaderHandler handler) {
-        if (imageView != null) {
-            if (imageUrl == null) {
-                // In a ListView views are reused, so we must be sure to remove the tag that could
-                // have been set to the ImageView to prevent that the wrong image is set.
-                imageView.setTag(null);
-                if (dummyDrawable != null) {
-                    imageView.setImageDrawable(dummyDrawable);
-                }
-                return;
-            }
-            String oldImageUrl = (String) imageView.getTag();
-            if (imageUrl.equals(oldImageUrl)) {
-                // nothing to do
-                return;
-            } else {
-                if (dummyDrawable != null) {
-                    // Set the dummy image while waiting for the actual image to be downloaded.
-                    imageView.setImageDrawable(dummyDrawable);
-                }
-                imageView.setTag(imageUrl);
-            }
+        boolean download = prepareDownload(imageUrl, imageView);
+        
+        if (!download) {
+        	return;
         }
-
+        
         if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
+            // do not go through message passing, handle directly instead
+        	Bitmap bmp = imageCache.getBitmap(imageUrl);
+            handler.handleImageLoaded(bmp, null);
+        } else {
+            executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
+                    defaultBufferSize));
+        }
+    }
+
+	private boolean prepareDownload(String imageUrl, ImageView imageView) {
+		if (imageUrl == null || imageView == null) {
+			return false;
+		}
+		    
+        // prevent crashes if there was a non-string tag previously set
+        String oldImageUrl = null;
+        if (imageView.getTag() instanceof String) {
+        	oldImageUrl = (String) imageView.getTag();
+        } else {
+        	// reset the tag, sorry, we take control of this
+        	imageView.setTag(null);
+        }
+        
+        if (TextUtils.equals(imageUrl, oldImageUrl)) {
+            // nothing to do
+            return false;
+        } else {
+            if (dummyDrawable != null) {
+                // Set the dummy image while waiting for the actual image to be downloaded.
+                imageView.setImageDrawable(dummyDrawable);
+            }
+            imageView.setTag(imageUrl);
+        }
+        
+	    return true;
+	}
+    
+    /**
+     * Similar to loadImage, but will scale down the image to the desired width and height, if necessary.
+     * 
+     * @param imageUrl
+     * @param imageView
+     * @param width
+     * @param height
+     */
+    public void loadScaledImage(String imageUrl, ImageView imageView, int width, int height) {
+    	loadScaledImage(imageUrl, imageView, width, height, new RemoteImageLoaderHandler(imageView, imageUrl, errorDrawable));
+    }
+    
+    public void loadScaledImage(String imageUrl, ImageView imageView, int width, int height, RemoteImageLoaderHandler handler) {
+    	
+    	boolean download = prepareDownload(imageUrl, imageView);
+    	if (!download) {
+    		return;
+    	}
+    	
+    	if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
             // do not go through message passing, handle directly instead
             handler.handleImageLoaded(imageCache.getBitmap(imageUrl), null);
         } else {
-            executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
+            executor.execute(new RemoteImageLoaderJob(imageUrl, width, height, handler, imageCache, numRetries,
                     defaultBufferSize));
         }
     }

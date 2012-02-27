@@ -22,6 +22,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import com.github.ignition.support.images.remote.BitmapHelper;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
@@ -64,12 +66,29 @@ public class ImageCache extends AbstractCache<String, byte[]> {
         return imageData;
     }
 
-    public synchronized Bitmap getBitmap(Object elementKey) {
+    /**
+     * Returns the bitmap for this particular key, if it exists in the cache, or null if not.  Care should be taken to
+     * ensure this is not called on large cached images.  Instead, getScaledBitmap() should be called.
+     * 
+     * @param elementKey
+     * @return
+     */
+    public synchronized Bitmap getBitmap(Object elementKey) throws OutOfMemoryError {
         byte[] imageData = super.get(elementKey);
         if (imageData == null) {
             return null;
         }
+        
         return BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
+    }
+    
+    public synchronized Bitmap getScaledBitmap(Object elementKey, int width, int height) {
+    	byte[] imageData = super.get(elementKey);
+    	if (imageData == null) {
+    		return null;
+    	}
+    	
+    	return BitmapHelper.decodeAndResize(imageData, width, height);
     }
 
     @Override
