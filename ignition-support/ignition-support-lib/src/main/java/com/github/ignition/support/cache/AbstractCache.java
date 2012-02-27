@@ -147,24 +147,11 @@ public abstract class AbstractCache<KeyT, ValT> implements Map<KeyT, ValT> {
             }
             rootDir = internalCacheDir.getAbsolutePath();
         }
+        
+        isDiskCacheEnabled = setRootDir(rootDir + "/cachefu/"
+                + IgnitedStrings.underscore(name.replaceAll("\\s", "")));
 
-        setRootDir(rootDir);
-
-        File outFile = new File(diskCacheDirectory);
-        if (outFile.mkdirs()) {
-            File nomedia = new File(diskCacheDirectory, ".nomedia");
-            try {
-                nomedia.createNewFile();
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Failed creating .nomedia file");
-            }
-        }
-
-        isDiskCacheEnabled = outFile.exists();
-
-        if (!isDiskCacheEnabled) {
-            Log.w(LOG_TAG, "Failed creating disk cache directory " + diskCacheDirectory);
-        } else {
+        if (isDiskCacheEnabled) {
             Log.d(name, "enabled write through to " + diskCacheDirectory);
 
             // sanitize disk cache
@@ -175,9 +162,26 @@ public abstract class AbstractCache<KeyT, ValT> implements Map<KeyT, ValT> {
         return isDiskCacheEnabled;
     }
 
-    private void setRootDir(String rootDir) {
-        this.diskCacheDirectory = rootDir + "/cachefu/"
-                + IgnitedStrings.underscore(name.replaceAll("\\s", ""));
+    private boolean setRootDir(String rootDir) {
+    	this.diskCacheDirectory = rootDir;
+        
+        File outFile = new File(diskCacheDirectory);
+        if (outFile.mkdirs()) {
+            File nomedia = new File(diskCacheDirectory, ".nomedia");
+            try {
+                nomedia.createNewFile();
+            } catch (IOException e) {
+                Log.e(LOG_TAG, "Failed creating .nomedia file");
+            }
+        }
+
+        boolean enabled = outFile.exists();
+        
+        if (!enabled) {
+            Log.w(LOG_TAG, "Failed creating disk cache directory " + diskCacheDirectory);
+        }
+        
+        return enabled;
     }
 
     /**
