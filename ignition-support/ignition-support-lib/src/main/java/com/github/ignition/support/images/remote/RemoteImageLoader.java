@@ -176,6 +176,7 @@ public class RemoteImageLoader {
     	int width = imageView.getWidth();
     	int height = imageView.getHeight();
     	if (width > 0 && height > 0) {
+    		Log.d("RemoteImageLoader", String.format("Enforcing size limit of %dx%d on bitmap to match ImageView dimensions", width, height));
     		loadScaledImage(imageUrl, imageView, width, height, handler);
     	} else {
     		boolean download = prepareDownload(imageUrl, imageView);
@@ -249,7 +250,7 @@ public class RemoteImageLoader {
     	
     	int imgViewWidth = imageView.getWidth();
     	int imgViewHeight = imageView.getHeight();
-    	if (imgViewWidth < width && imgViewHeight < height) {
+    	if ((imgViewWidth > 0 && imgViewHeight > 0) && (imgViewWidth < width && imgViewHeight < height)) {
     		// this is bad, we might lose the aspect ratio???
     		Log.d("RemoteImageLoader", String.format("Changing width, height, asked for %dx%s, instead going to scale to %dx%d", width, height, imgViewWidth, imgViewHeight));
     		width = imgViewWidth;
