@@ -171,25 +171,33 @@ public class RemoteImageLoader {
      *            the handler that will process the bitmap after completion
      */
     public void loadImage(String imageUrl, ImageView imageView, RemoteImageLoaderHandler handler) {
-        boolean download = prepareDownload(imageUrl, imageView);
-        
-        if (!download) {
-        	return;
-        }
-        
-        if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
-            // do not go through message passing, handle directly instead
-        	Bitmap bmp = imageCache.getBitmap(imageUrl);
-        	
-        	if (bmp == null) {
-        		return;
-        	}
-        	
-            handler.handleImageLoaded(bmp, null);
-        } else {
-            executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
-                    defaultBufferSize));
-        }
+    	
+    	// load a scaled version
+    	int width = imageView.getWidth();
+    	int height = imageView.getHeight();
+    	if (width > 0 && height > 0) {
+    		loadScaledImage(imageUrl, imageView, width, height, handler);
+    	} else {
+    		boolean download = prepareDownload(imageUrl, imageView);
+            
+            if (!download) {
+            	return;
+            }
+            
+            if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
+                // do not go through message passing, handle directly instead
+            	Bitmap bmp = imageCache.getBitmap(imageUrl);
+            	
+            	if (bmp == null) {
+            		return;
+            	}
+            	
+                handler.handleImageLoaded(bmp, null);
+            } else {
+                executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
+                        defaultBufferSize));
+            }
+    	}
     }
 
 	private boolean prepareDownload(String imageUrl, ImageView imageView) {
@@ -237,6 +245,15 @@ public class RemoteImageLoader {
     	boolean download = prepareDownload(imageUrl, imageView);
     	if (!download) {
     		return;
+    	}
+    	
+    	int imgViewWidth = imageView.getWidth();
+    	int imgViewHeight = imageView.getHeight();
+    	if (imgViewWidth < width && imgViewHeight < height) {
+    		// this is bad, we might lose the aspect ratio???
+    		Log.d("RemoteImageLoader", String.format("Changing width, height, asked for %dx%s, instead going to scale to %dx%d", width, height, imgViewWidth, imgViewHeight));
+    		width = imgViewWidth;
+    		height = imgViewHeight;
     	}
     	
     	if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {

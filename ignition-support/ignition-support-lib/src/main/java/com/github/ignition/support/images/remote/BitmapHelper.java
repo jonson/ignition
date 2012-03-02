@@ -22,20 +22,28 @@ public final class BitmapHelper {
 			o.inJustDecodeBounds = true;
 			BitmapFactory.decodeByteArray(imageData, 0, imageData.length, o);
 
-			// Find the correct scale value. It should be the power of
-			// 2.
-			int widthTmp = o.outWidth, heightTmp = o.outHeight;
-			while (true) {
-				if ((widthTmp / 2) < maxWidth || (heightTmp / 2) < maxHeight) {
-					break;
+			if (o.outWidth > maxWidth || o.outHeight > maxHeight) {
+				// don't scale
+				// Find the correct scale value. It should be the power of
+				// 2.
+				int widthTmp = o.outWidth, heightTmp = o.outHeight;
+				while (true) {
+					if ((widthTmp / 2) < maxWidth || (heightTmp / 2) < maxHeight) {
+						break;
+					}
+					widthTmp /= 2;
+					heightTmp /= 2;
+					scale *= 2;
 				}
-				widthTmp /= 2;
-				heightTmp /= 2;
-				scale *= 2;
+				Log.d(LOG_TAG, "Scale factor=" + scale + " width=" + widthTmp
+						+ " height=" + heightTmp);
+			} else {
+				Log.d(LOG_TAG, "No scaling required, image is smaller than the requested size");
+				// this will disable resizing later on
+				maxWidth = 0;
+				maxHeight = 0;
 			}
 
-			Log.d(LOG_TAG, "Scale factor=" + scale + " width=" + widthTmp
-					+ " height=" + heightTmp);
 		}
 		else
 		{
