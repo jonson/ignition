@@ -71,7 +71,10 @@ public class RemoteImageLoader {
     public RemoteImageLoader(Context context, boolean createCache) {
         executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(DEFAULT_POOL_SIZE);
         if (createCache) {
-            imageCache = new ImageCache(25, expirationInMinutes, DEFAULT_POOL_SIZE);
+        	android.util.DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+    		int maxWidth = metrics.widthPixels;
+    		int maxHeight = metrics.heightPixels;
+            imageCache = new ImageCache(25, expirationInMinutes, DEFAULT_POOL_SIZE, maxWidth, maxHeight);
             imageCache.enableDiskCache(context.getApplicationContext(),
                     ImageCache.DISK_CACHE_SDCARD);
         }
@@ -177,6 +180,11 @@ public class RemoteImageLoader {
         if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
             // do not go through message passing, handle directly instead
         	Bitmap bmp = imageCache.getBitmap(imageUrl);
+        	
+        	if (bmp == null) {
+        		return;
+        	}
+        	
             handler.handleImageLoaded(bmp, null);
         } else {
             executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
@@ -233,7 +241,12 @@ public class RemoteImageLoader {
     	
     	if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
             // do not go through message passing, handle directly instead
-            handler.handleImageLoaded(imageCache.getBitmap(imageUrl), null);
+    		Bitmap bmp = imageCache.getScaledBitmap(imageUrl, width, height);
+    		if (bmp == null) {
+    			// error loading the bitmap (OOM?), nothing we can do
+    			return;
+    		}
+            handler.handleImageLoaded(bmp, null);
         } else {
             executor.execute(new RemoteImageLoaderJob(imageUrl, width, height, handler, imageCache, numRetries,
                     defaultBufferSize));

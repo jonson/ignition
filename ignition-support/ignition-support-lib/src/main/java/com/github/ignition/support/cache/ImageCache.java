@@ -36,8 +36,14 @@ import android.graphics.BitmapFactory;
  */
 public class ImageCache extends AbstractCache<String, byte[]> {
 
-    public ImageCache(int initialCapacity, long expirationInMinutes, int maxConcurrentThreads) {
+	private final int maxWidth;
+	private final int maxHeight;
+	
+    public ImageCache(int initialCapacity, long expirationInMinutes, int maxConcurrentThreads, int maxWidth, int maxHeight) {
         super("ImageCache", initialCapacity, expirationInMinutes, maxConcurrentThreads);
+        
+        this.maxWidth = maxWidth;
+        this.maxHeight = maxHeight;
     }
 
     public synchronized void removeAllWithPrefix(String urlPrefix) {
@@ -73,13 +79,8 @@ public class ImageCache extends AbstractCache<String, byte[]> {
      * @param elementKey
      * @return
      */
-    public synchronized Bitmap getBitmap(Object elementKey) throws OutOfMemoryError {
-        byte[] imageData = super.get(elementKey);
-        if (imageData == null) {
-            return null;
-        }
-        
-        return BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
+    public synchronized Bitmap getBitmap(Object elementKey) {
+    	return getScaledBitmap(elementKey, maxWidth, maxHeight);
     }
     
     public synchronized Bitmap getScaledBitmap(Object elementKey, int width, int height) {
@@ -88,7 +89,11 @@ public class ImageCache extends AbstractCache<String, byte[]> {
     		return null;
     	}
     	
-    	return BitmapHelper.decodeAndResize(imageData, width, height);
+    	try {
+    		return BitmapHelper.decodeAndResize(imageData, width, height);
+    	} catch (OutOfMemoryError oome) {
+    		return null;
+    	}
     }
 
     @Override
