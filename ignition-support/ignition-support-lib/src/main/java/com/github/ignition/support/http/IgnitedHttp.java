@@ -113,6 +113,9 @@ public class IgnitedHttp {
         ConnManagerParams.setMaxConnectionsPerRoute(httpParams, new ConnPerRouteBean(
                 config.maxConnections));
         ConnManagerParams.setMaxTotalConnections(httpParams, config.maxConnections);
+        
+        // this doesn't seem to be working w/o this in here
+        HttpConnectionParams.setConnectionTimeout(httpParams, config.waitForConnectionTimeout);
         HttpConnectionParams.setSoTimeout(httpParams, config.socketTimeout);
         HttpConnectionParams.setTcpNoDelay(httpParams, true);
         HttpProtocolParams.setVersion(httpParams, HttpVersion.HTTP_1_1);
