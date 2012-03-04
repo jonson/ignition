@@ -49,8 +49,8 @@ import org.apache.http.message.BasicNameValuePair;
  * params.put("profile_picture3", new ByteArrayInputStream(someBytes)); // Upload some bytes
  * </pre>
  */
-public class RequestParams {
-    private static String ENCODING = "UTF-8";
+public abstract class RequestParams {
+    protected static String ENCODING = "UTF-8";
 
     protected ConcurrentHashMap<String, String> urlParams;
     protected ConcurrentHashMap<String, FileWrapper> fileParams;
@@ -104,7 +104,15 @@ public class RequestParams {
      * @param file the file to add.
      */
     public void put(String key, File file) throws FileNotFoundException {
-        put(key, new FileInputStream(file), file.getName());
+        put(key, file, null);
+    }
+    
+    public void put(String key, File file, String contentType) throws FileNotFoundException {
+    	if (!file.exists()) {
+    		throw new FileNotFoundException();
+    	}
+    	
+        fileParams.put(key, new FileWrapper(file, contentType));
     }
 
     /**
@@ -112,9 +120,9 @@ public class RequestParams {
      * @param key the key name for the new param.
      * @param stream the input stream to add.
      */
-    public void put(String key, InputStream stream) {
-        put(key, stream, null);
-    }
+//    public void put(String key, InputStream stream) {
+//        put(key, stream, null);
+//    }
 
     /**
      * Adds an input stream to the request.
@@ -122,9 +130,9 @@ public class RequestParams {
      * @param stream the input stream to add.
      * @param fileName the name of the file.
      */
-    public void put(String key, InputStream stream, String fileName) {
-        put(key, stream, fileName, null);
-    }
+//    public void put(String key, InputStream stream, String fileName) {
+//        put(key, stream, fileName, null);
+//    }
 
     /**
      * Adds an input stream to the request.
@@ -133,11 +141,11 @@ public class RequestParams {
      * @param fileName the name of the file.
      * @param contentType the content type of the file, eg. application/json
      */
-    public void put(String key, InputStream stream, String fileName, String contentType) {
-        if(key != null && stream != null) {
-            fileParams.put(key, new FileWrapper(stream, fileName, contentType));
-        }
-    }
+//    public void put(String key, InputStream stream, String fileName, String contentType) {
+//        if(key != null && stream != null) {
+//            fileParams.put(key, new FileWrapper(stream, fileName, contentType));
+//        }
+//    }
 
     /**
      * Removes a parameter from the request.
@@ -172,44 +180,7 @@ public class RequestParams {
         return result.toString();
     }
 
-    HttpEntity getEntity() {
-        HttpEntity entity = null;
-
-        if(!fileParams.isEmpty()) {
-            SimpleMultipartEntity multipartEntity = new SimpleMultipartEntity();
-
-            // Add string params
-            for(ConcurrentHashMap.Entry<String, String> entry : urlParams.entrySet()) {
-                multipartEntity.addPart(entry.getKey(), entry.getValue());
-            }
-
-            // Add file params
-            int currentIndex = 0;
-            int lastIndex = fileParams.entrySet().size() - 1;
-            for(ConcurrentHashMap.Entry<String, FileWrapper> entry : fileParams.entrySet()) {
-                FileWrapper file = entry.getValue();
-                if(file.inputStream != null) {
-                	boolean isLast = currentIndex == lastIndex;
-                    if(file.contentType != null) {
-                        multipartEntity.addPart(entry.getKey(), file.getFileName(), file.inputStream, file.contentType, isLast);
-                    } else {
-                        multipartEntity.addPart(entry.getKey(), file.getFileName(), file.inputStream, isLast);
-                    }
-                }
-                currentIndex++;
-            }
-
-            entity = multipartEntity;
-        } else {
-            try {
-                entity = new UrlEncodedFormEntity(getParamsList(), ENCODING);
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return entity;
-    }
+    abstract HttpEntity getEntity();
 
     private void init(){
         urlParams = new ConcurrentHashMap<String, String>();
@@ -230,23 +201,17 @@ public class RequestParams {
         return URLEncodedUtils.format(getParamsList(), ENCODING);
     }
 
-    private static class FileWrapper {
-        public InputStream inputStream;
-        public String fileName;
-        public String contentType;
-
-        public FileWrapper(InputStream inputStream, String fileName, String contentType) {
-            this.inputStream = inputStream;
-            this.fileName = fileName;
-            this.contentType = contentType;
-        }
-
-        public String getFileName() {
-            if(fileName != null) {
-                return fileName;
-            } else {
-                return "nofilename";
-            }
-        }
+    protected static class FileWrapper {
+    	public File file;
+    	public String contentType;
+    	
+    	public FileWrapper(File file, String contentType) {
+    		this.file = file;
+    		this.contentType = contentType;
+    	}
+    	
+    	public String getFileName() {
+    		return file.getName();
+    	}
     }
 }

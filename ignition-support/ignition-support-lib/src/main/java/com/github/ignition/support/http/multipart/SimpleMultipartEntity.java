@@ -21,7 +21,7 @@
     http://blog.rafaelsanches.com/2011/01/29/upload-using-multipart-post-using-httpclient-in-android/
 */
 
-package com.github.ignition.support.http;
+package com.github.ignition.support.http.multipart;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,7 +37,14 @@ import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.message.BasicHeader;
 
-class SimpleMultipartEntity implements HttpEntity {
+/**
+ * Simple version of a multipart entity that stores the entire request in memory, then outputs it on the fly.  This is
+ * implementation is reasonable for smaller files, where the total size will fit into memory. 
+ * 
+ * @author jon
+ *
+ */
+public class SimpleMultipartEntity implements HttpEntity {
     private final static char[] MULTIPART_CHARS = "-_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 
     private String boundary = null;
@@ -160,6 +167,8 @@ class SimpleMultipartEntity implements HttpEntity {
 
     @Override
     public void writeTo(final OutputStream outstream) throws IOException {
+    	
+    	// we need to beef this up and write in chunks
         outstream.write(out.toByteArray());
     }
 
@@ -180,6 +189,6 @@ class SimpleMultipartEntity implements HttpEntity {
     @Override
     public InputStream getContent() throws IOException,
     UnsupportedOperationException {
-        return new ByteArrayInputStream(out.toByteArray());
+        throw new UnsupportedOperationException("cannot fetch the content from a multipart entity, this is intened to be written to the server");
     }
 }

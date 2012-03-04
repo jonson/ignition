@@ -119,6 +119,8 @@ public abstract class IgnitedHttpRequestBase implements IgnitedHttpRequest,
         IOException cause = null;
         while (retry) {
             try {
+            	//
+            	
                 return httpClient.execute(request, this, context);
             } catch (IOException e) {
                 cause = e;
