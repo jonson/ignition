@@ -2,6 +2,8 @@ package com.github.ignition.support.http;
 
 import java.io.UnsupportedEncodingException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -32,6 +34,11 @@ public class MultipartRequestParams extends RequestParams {
         if(!fileParams.isEmpty()) {
             MultipartEntity multipartEntity = new MultipartEntity();
 
+            if (!fileParams.isEmpty()) {
+            	ExecutorService executor = Executors.newSingleThreadExecutor();
+            	multipartEntity.setExecutor(executor);
+            }
+            
             // Add string params
             for(ConcurrentHashMap.Entry<String, String> entry : urlParams.entrySet()) {
                 multipartEntity.addPart(new StringPart(entry.getKey(), entry.getValue()));

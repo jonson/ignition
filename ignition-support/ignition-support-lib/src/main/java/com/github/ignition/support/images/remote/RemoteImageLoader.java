@@ -185,19 +185,8 @@ public class RemoteImageLoader {
             	return;
             }
             
-            if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
-                // do not go through message passing, handle directly instead
-            	Bitmap bmp = imageCache.getBitmap(imageUrl);
-            	
-            	if (bmp == null) {
-            		return;
-            	}
-            	
-                handler.handleImageLoaded(bmp, null);
-            } else {
-                executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
-                        defaultBufferSize));
-            }
+            executor.execute(new RemoteImageLoaderJob(imageUrl, handler, imageCache, numRetries,
+                    defaultBufferSize));
     	}
     }
 
@@ -257,17 +246,7 @@ public class RemoteImageLoader {
     		height = imgViewHeight;
     	}
     	
-    	if (imageCache != null && imageCache.containsKeyInMemory(imageUrl)) {
-            // do not go through message passing, handle directly instead
-    		Bitmap bmp = imageCache.getScaledBitmap(imageUrl, width, height);
-    		if (bmp == null) {
-    			// error loading the bitmap (OOM?), nothing we can do
-    			return;
-    		}
-            handler.handleImageLoaded(bmp, null);
-        } else {
-            executor.execute(new RemoteImageLoaderJob(imageUrl, width, height, handler, imageCache, numRetries,
-                    defaultBufferSize));
-        }
+        executor.execute(new RemoteImageLoaderJob(imageUrl, width, height, handler, imageCache, numRetries,
+                defaultBufferSize));
     }
 }

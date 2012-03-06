@@ -117,9 +117,11 @@ public class IgnitedHttp {
         // this doesn't seem to be working w/o this in here
         HttpConnectionParams.setConnectionTimeout(httpParams, config.waitForConnectionTimeout);
         HttpConnectionParams.setSoTimeout(httpParams, config.socketTimeout);
-        HttpConnectionParams.setTcpNoDelay(httpParams, true);
+        HttpConnectionParams.setTcpNoDelay(httpParams, false);
+        HttpConnectionParams.setSocketBufferSize(httpParams, 16 * 1024);
         HttpProtocolParams.setVersion(httpParams, HttpVersion.HTTP_1_1);
         HttpProtocolParams.setUserAgent(httpParams, config.userAgent);
+        
 
         SchemeRegistry schemeRegistry = new SchemeRegistry();
         schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));

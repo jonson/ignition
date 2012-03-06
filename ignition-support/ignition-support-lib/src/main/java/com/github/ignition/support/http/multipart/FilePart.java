@@ -67,7 +67,9 @@ public class FilePart extends BasePart {
     }
 
     public void writeTo(OutputStream out, Boundary boundary) throws IOException {
-        out.write(getHeader(boundary));
+    	byte[] headerBytes = getHeader(boundary); 
+        doWrite(out, headerBytes, headerBytes.length);
+        
         InputStream in = new FileInputStream(file);
         try {
             byte[] tmp = new byte[DEFAULT_BUFFER_SIZE];
@@ -77,13 +79,9 @@ public class FilePart extends BasePart {
             }
         } finally {
             in.close();
-            doneWriting();
         }
-        out.write(CRLF);
         
-    }
-    
-    protected void doneWriting() {
+        doWrite(out, CRLF, CRLF.length);
     }
     
     protected void doWrite(OutputStream out, byte[] data, int length) throws IOException {
